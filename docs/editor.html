@@ -81,6 +81,14 @@ function loadData() {
 }
 
 // --- シーン ---
+function addScene() {
+  scenes.push({ memo:"", lines:[{ text:"", actors:{} }] });
+  currentScene = scenes.length - 1;
+  renderScenes();
+  renderActors();
+  saveData();
+}
+
 function renderScenes(){
   const list = document.getElementById("scene-list");
   list.innerHTML="";
