@@ -82,23 +82,15 @@ function loadData() {
 
 // --- シーン ---
 function addScene() {
-  // 新しいシーンを作る（1行目は空のセリフ）
-  const newScene = { memo: "", lines: [{ text: "", actors: {} }] };
+  const newScene = { memo:"", lines:[{ text:"", actors:{} }] };
   scenes.push(newScene);
-
-  // 現在のシーンを新しいシーンに切り替え
   currentScene = scenes.length - 1;
   currentLine = 0;
-
-  // 描画更新
   renderScenes();
   renderLines();
   renderActors();
-
-  // 自動保存
   saveData();
 }
-
 
 function renderScenes(){
   const list = document.getElementById("scene-list");
@@ -106,7 +98,15 @@ function renderScenes(){
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
     btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors(); saveData(); }
+    btn.onclick=()=>{ 
+      scenes[currentScene].memo=document.getElementById("scene-memo").value; 
+      currentScene=i; 
+      currentLine=0; 
+      renderScenes(); 
+      renderLines(); 
+      renderActors(); 
+      saveData(); 
+    }
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
