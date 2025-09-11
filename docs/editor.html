@@ -82,12 +82,23 @@ function loadData() {
 
 // --- シーン ---
 function addScene() {
-  scenes.push({ memo:"", lines:[{ text:"", actors:{} }] });
+  // 新しいシーンを作る（1行目は空のセリフ）
+  const newScene = { memo: "", lines: [{ text: "", actors: {} }] };
+  scenes.push(newScene);
+
+  // 現在のシーンを新しいシーンに切り替え
   currentScene = scenes.length - 1;
+  currentLine = 0;
+
+  // 描画更新
   renderScenes();
+  renderLines();
   renderActors();
+
+  // 自動保存
   saveData();
 }
+
 
 function renderScenes(){
   const list = document.getElementById("scene-list");
