@@ -2,22 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（自動保存版）</title>
+<title>立ち位置可視化ツール（改良版2）</title>
 <style>
-body { font-family:sans-serif; display:flex; gap:20px; background:#f0f0f0; margin:0; padding:10px; }
-.container { background:white; padding:15px; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,0.2); width:300px; }
+body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
+.container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 h3,h4 { margin:5px 0; }
-#stage-container { flex-grow:1; }
-#stage { width:700px; height:500px; background:#eee; border:2px solid #aaa; position:relative;
-         background-image: linear-gradient(0deg, transparent 24%, #ccc 25%, #ccc 26%, transparent 27%, transparent 74%, #ccc 75%, #ccc 76%, transparent 77%, transparent),
-                           linear-gradient(90deg, transparent 24%, #ccc 25%, #ccc 26%, transparent 27%, transparent 74%, #ccc 75%, #ccc 76%, transparent 77%, transparent);
-         background-size:50px 50px; }
+#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; display:flex; justify-content:center; align-items:center; }
 .actor { width:50px;height:50px;border-radius:50%;background:#3498db;color:white;display:flex;align-items:center;justify-content:center;position:absolute;cursor:grab; }
 .hidden { opacity:0.1; }
-button { margin:2px; cursor:pointer; }
+button { margin:2px; }
+textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; border:1px solid #ccc; }
 .actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
-.flex-row { display:flex; gap:5px; }
-textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; border:1px solid #ccc; box-sizing:border-box; }
 </style>
 </head>
 <body>
@@ -30,33 +25,27 @@ textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; 
 
   <h4>セリフ</h4>
   <div id="line-list"></div>
-  <div class="flex-row">
-    <input id="new-line" placeholder="セリフ内容">
-    <button onclick="addLine()">＋追加</button>
-  </div>
-  <div class="flex-row">
-    <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
-    <button onclick="jumpLine()">ジャンプ</button>
-  </div>
+  <input id="new-line" placeholder="セリフ内容">
+  <button onclick="addLine()">＋セリフ追加</button>
+  <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
+  <button onclick="jumpLine()">ジャンプ</button>
 
-  <h4>役者（共通プール）</h4>
+  <h4>役者（共通）</h4>
   <div id="actors-pool"></div>
-  <div class="flex-row">
-    <input id="new-actor" placeholder="役者名">
-    <button onclick="addActorPool()">＋追加</button>
-  </div>
+  <input id="new-actor" placeholder="役者名">
+  <button onclick="addActorPool()">＋役者追加</button>
 
+  <br><br>
   <button onclick="exportData()">エクスポート</button>
   <input type="file" onchange="importData(event)">
 </div>
 
-<div id="stage-container" class="container">
+<div class="container">
   <h3>ステージ</h3>
   <div id="stage"></div>
 
   <h4>役者表示切替</h4>
   <div id="actor-list"></div>
-  <button onclick="showAllActors()">全員表示</button>
 </div>
 
 <script>
@@ -65,54 +54,26 @@ let scenes = [{ memo:"", lines:[{ text:"", actors:{} }] }];
 let currentScene=0, currentLine=0, selectedActor=null;
 let dragIndex=null;
 
-// --- localStorage 自動保存 ---
-function saveData() {
-  const data = { actorsPool, scenes };
-  localStorage.setItem("blockingData", JSON.stringify(data));
-}
-
-function loadData() {
-  const saved = localStorage.getItem("blockingData");
-  if (saved) {
-    const obj = JSON.parse(saved);
-    actorsPool = obj.actorsPool || [];
-    scenes = obj.scenes || [{ memo:"", lines:[{ text:"", actors:{} }] }];
-  }
-}
-
 // --- シーン ---
-function addScene() {
-  const newScene = { memo:"", lines:[{ text:"", actors:{} }] };
-  scenes.push(newScene);
-  currentScene = scenes.length - 1;
-  currentLine = 0;
-  renderScenes();
-  renderLines();
-  renderActors();
-  saveData();
-}
-
 function renderScenes(){
   const list = document.getElementById("scene-list");
   list.innerHTML="";
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
     btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ 
-      scenes[currentScene].memo=document.getElementById("scene-memo").value; 
-      currentScene=i; 
-      currentLine=0; 
-      renderScenes(); 
-      renderLines(); 
-      renderActors(); 
-      saveData(); 
-    }
+    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
   document.getElementById("scene-memo").value=scenes[currentScene].memo;
   renderLines();
   renderActors();
+}
+
+function addScene(){
+  scenes.push({ memo:"", lines:[{ text:"", actors:{} }] });
+  currentScene=scenes.length-1; currentLine=0;
+  renderScenes();
 }
 
 // --- セリフ ---
@@ -122,12 +83,12 @@ function renderLines(){
   scenes[currentScene].lines.forEach((l,i)=>{
     const btn=document.createElement("button");
     btn.textContent=l.text||"（空のセリフ）";
-    btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); saveData(); };
+    btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); };
     if(i===currentLine) btn.style.fontWeight="bold";
     list.appendChild(btn);
     const del=document.createElement("button");
     del.textContent="削除";
-    del.onclick=()=>{ scenes[currentScene].lines.splice(i,1); currentLine=0; renderLines(); renderActors(); saveData(); };
+    del.onclick=()=>{ scenes[currentScene].lines.splice(i,1); currentLine=0; renderLines(); renderActors(); };
     list.appendChild(del);
   });
 }
@@ -140,7 +101,6 @@ function addLine(){
   currentLine=scenes[currentScene].lines.length-1;
   renderLines();
   renderActors();
-  saveData();
 }
 
 function jumpLine(){
@@ -149,7 +109,6 @@ function jumpLine(){
     currentLine=num-1;
     renderLines();
     renderActors();
-    saveData();
   }
 }
 
@@ -160,7 +119,7 @@ function renderActorPool(){
   actorsPool.forEach(name=>{
     const btn=document.createElement("button");
     btn.textContent=name;
-    btn.onclick=()=>{ addActorToLine(name); saveData(); };
+    btn.onclick=()=>{ addActorToLine(name); };
     list.appendChild(btn);
   });
 }
@@ -171,14 +130,12 @@ function addActorPool(){
   actorsPool.push(name);
   document.getElementById("new-actor").value="";
   renderActorPool();
-  saveData();
 }
 
 function addActorToLine(name){
   const line=scenes[currentScene].lines[currentLine];
   if(!line.actors[name]) line.actors[name]={x:50,y:50};
   renderActors();
-  saveData();
 }
 
 // --- ステージ表示 ---
@@ -209,7 +166,7 @@ function renderActors(){
     btn.onclick=()=>{ selectedActor = (selectedActor===name)?null:name; renderActors(); };
     const del=document.createElement("button");
     del.textContent="削除";
-    del.onclick=()=>{ delete actorsObj[name]; renderActors(); saveData(); };
+    del.onclick=()=>{ delete actorsObj[name]; renderActors(); };
     wrapper.appendChild(btn);
     wrapper.appendChild(del);
     list.appendChild(wrapper);
@@ -223,11 +180,7 @@ function drag(e){
   a.y=e.pageY - document.getElementById("stage").offsetTop - 25;
   renderActors();
 }
-
-function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; saveData(); }
-
-// --- 表示切替 ---
-function showAllActors(){ selectedActor=null; renderActors(); }
+function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
 
 // --- データ入出力 ---
 function exportData(){
@@ -239,19 +192,14 @@ function exportData(){
   a.download="blocking.json";
   a.click();
 }
-
-function importData(event){
-  const file=event.target.files[0];
+function importData(e){
+  const file=e.target.files[0];
   const reader=new FileReader();
-  reader.onload=(e)=>{
-    const obj=JSON.parse(e.target.result);
+  reader.onload=ev=>{
+    const obj=JSON.parse(ev.target.result);
     actorsPool=obj.actorsPool||[];
     scenes=obj.scenes||[{ memo:"", lines:[{text:"",actors:{}}] }];
-    currentScene=0; currentLine=0;
-    renderActorPool();
-    renderScenes();
-    renderActors();
-    saveData();
+    currentScene=0; currentLine=0; renderActorPool(); renderScenes(); renderActors();
   };
   reader.readAsText(file);
 }
@@ -266,14 +214,10 @@ document.getElementById("new-line").addEventListener("keydown", e=>{
 
 document.getElementById("scene-memo").addEventListener("input", e=>{
   scenes[currentScene].memo=e.target.value;
-  saveData();
 });
 
-// --- 初回ロード ---
-loadData();
 renderActorPool();
 renderScenes();
-
 </script>
 </body>
 </html>
