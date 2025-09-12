@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（コピー＆ペースト対応）</title>
+<title>立ち位置可視化ツール（編集用・コピー機能付き）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -53,7 +53,9 @@ let actorsPool = [];
 let scenes = [{ memo:"", lines:[{ text:"", actors:{} }] }];
 let currentScene=0, currentLine=0, selectedActor=null;
 let dragIndex=null;
-let copiedPosition=null; // コピーした位置を保持
+
+// --- 位置コピー用 ---
+let copiedPositions = {}; // { "役者名": {x,y} }
 
 // --- シーン ---
 function renderScenes(){
@@ -62,7 +64,7 @@ function renderScenes(){
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
     btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors(); }
+    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
@@ -169,19 +171,11 @@ function renderActors(){
 
     const copy=document.createElement("button");
     copy.textContent="コピー";
-    copy.onclick=()=>{
-      copiedPosition = {...actorsObj[name]};
-      alert(name+" の位置をコピーしました");
-    };
+    copy.onclick=()=>copyActorPosition(name);
 
     const paste=document.createElement("button");
     paste.textContent="ペースト";
-    paste.onclick=()=>{
-      if(copiedPosition){
-        actorsObj[name] = {...copiedPosition};
-        renderActors();
-      }
-    };
+    paste.onclick=()=>pasteActorPosition(name);
 
     const del=document.createElement("button");
     del.textContent="削除";
@@ -193,6 +187,24 @@ function renderActors(){
     wrapper.appendChild(del);
     list.appendChild(wrapper);
   });
+}
+
+// --- コピー・ペースト処理 ---
+function copyActorPosition(name) {
+  const actor = scenes[currentScene].lines[currentLine].actors[name];
+  if (actor) {
+    copiedPositions[name] = { ...actor };
+    alert(`${name} の位置をコピーしました`);
+  }
+}
+function pasteActorPosition(name) {
+  if (copiedPositions[name]) {
+    scenes[currentScene].lines[currentLine].actors[name] = { ...copiedPositions[name] };
+    renderActors();
+    alert(`${name} にコピーした位置をペーストしました`);
+  } else {
+    alert(`${name} のコピー位置はありません`);
+  }
 }
 
 // --- ドラッグ ---
