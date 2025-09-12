@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（改良版2）</title>
+<title>立ち位置可視化ツール（コピー＆ペースト対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -12,7 +12,7 @@ h3,h4 { margin:5px 0; }
 .hidden { opacity:0.1; }
 button { margin:2px; }
 textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; border:1px solid #ccc; }
-.actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+.actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; gap:4px; }
 </style>
 </head>
 <body>
@@ -53,6 +53,7 @@ let actorsPool = [];
 let scenes = [{ memo:"", lines:[{ text:"", actors:{} }] }];
 let currentScene=0, currentLine=0, selectedActor=null;
 let dragIndex=null;
+let copiedPosition=null; // コピーした位置を保持
 
 // --- シーン ---
 function renderScenes(){
@@ -61,7 +62,7 @@ function renderScenes(){
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
     btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
+    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors(); }
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
@@ -161,13 +162,34 @@ function renderActors(){
   names.forEach(name=>{
     const wrapper=document.createElement("div");
     wrapper.className="actor-button";
+
     const btn=document.createElement("button");
     btn.textContent=name;
     btn.onclick=()=>{ selectedActor = (selectedActor===name)?null:name; renderActors(); };
+
+    const copy=document.createElement("button");
+    copy.textContent="コピー";
+    copy.onclick=()=>{
+      copiedPosition = {...actorsObj[name]};
+      alert(name+" の位置をコピーしました");
+    };
+
+    const paste=document.createElement("button");
+    paste.textContent="ペースト";
+    paste.onclick=()=>{
+      if(copiedPosition){
+        actorsObj[name] = {...copiedPosition};
+        renderActors();
+      }
+    };
+
     const del=document.createElement("button");
     del.textContent="削除";
     del.onclick=()=>{ delete actorsObj[name]; renderActors(); };
+
     wrapper.appendChild(btn);
+    wrapper.appendChild(copy);
+    wrapper.appendChild(paste);
     wrapper.appendChild(del);
     list.appendChild(wrapper);
   });
