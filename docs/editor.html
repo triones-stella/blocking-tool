@@ -1,257 +1,187 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・コピー機能付き）</title>
-<style>
-body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
-.container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-h3,h4 { margin:5px 0; }
-#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; display:flex; justify-content:center; align-items:center; }
-.actor { width:50px;height:50px;border-radius:50%;background:#3498db;color:white;display:flex;align-items:center;justify-content:center;position:absolute;cursor:grab; }
-.hidden { opacity:0.1; }
-button { margin:2px; }
-textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; border:1px solid #ccc; }
-.actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; gap:4px; }
-</style>
+  <meta charset="UTF-8">
+  <title>劇の立ち位置エディター</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; }
+    #controls { width: 280px; background: #f8f8f8; padding: 10px; overflow-y: auto; }
+    #stage { flex: 1; background: #eee; position: relative; }
+    .actor { position: absolute; width: 60px; height: 60px;
+             border-radius: 50%; background: lightblue;
+             display: flex; align-items: center; justify-content: center;
+             cursor: move; border: 2px solid #555; }
+    .actor.selected { background: orange; }
+    .actor-button { margin: 2px 0; display: flex; gap: 3px; }
+    button { cursor: pointer; }
+    input { width: 100%; margin: 3px 0; }
+    .section { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #ccc; }
+  </style>
 </head>
 <body>
+  <div id="controls">
+    <div class="section">
+      <h3>役者追加</h3>
+      <input id="newActor" placeholder="役者名" onkeypress="if(event.key==='Enter'){addActor();}">
+      <button onclick="addActor()">追加</button>
+      <div id="actor-list"></div>
+    </div>
 
-<div class="container">
-  <h3>シーン</h3>
-  <div id="scene-list"></div>
-  <button onclick="addScene()">＋シーン追加</button>
-  <textarea id="scene-memo" placeholder="シーンのメモ"></textarea>
+    <div class="section">
+      <h3>シーン管理</h3>
+      <input id="newScene" placeholder="シーン名" onkeypress="if(event.key==='Enter'){addScene();}">
+      <button onclick="addScene()">追加</button>
+      <div id="scene-list"></div>
+    </div>
 
-  <h4>セリフ</h4>
-  <div id="line-list"></div>
-  <input id="new-line" placeholder="セリフ内容">
-  <button onclick="addLine()">＋セリフ追加</button>
-  <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
-  <button onclick="jumpLine()">ジャンプ</button>
+    <div class="section">
+      <h3>セリフ番号</h3>
+      <input id="lineNumber" type="number" min="1" max="113" value="1"
+             onkeypress="if(event.key==='Enter'){setLineNumber();}">
+      <button onclick="setLineNumber()">移動</button>
+    </div>
 
-  <h4>役者（共通）</h4>
-  <div id="actors-pool"></div>
-  <input id="new-actor" placeholder="役者名">
-  <button onclick="addActorPool()">＋役者追加</button>
+    <div class="section">
+      <button onclick="saveToCookie()">保存</button>
+      <button onclick="loadFromCookie()">読込</button>
+    </div>
+  </div>
 
-  <br><br>
-  <button onclick="exportData()">エクスポート</button>
-  <input type="file" onchange="importData(event)">
-</div>
-
-<div class="container">
-  <h3>ステージ</h3>
   <div id="stage"></div>
 
-  <h4>役者表示切替</h4>
-  <div id="actor-list"></div>
-</div>
+  <script>
+    // データ保持
+    let data = { scenes: {} };
+    let currentScene = null;
+    let currentLine = 1;
+    let selectedActor = null;
+    let copiedPosition = null;
 
-<script>
-let actorsPool = [];
-let scenes = [{ memo:"", lines:[{ text:"", actors:{} }] }];
-let currentScene=0, currentLine=0, selectedActor=null;
-let dragIndex=null;
+    function addActor(){
+      const name=document.getElementById("newActor").value.trim();
+      if(!name) return;
+      if(!data.actors) data.actors=[];
+      if(!data.actors.includes(name)) data.actors.push(name);
+      document.getElementById("newActor").value="";
+      renderActors();
+    }
 
-// --- 位置コピー用 ---
-let copiedPositions = {}; // { "役者名": {x,y} }
+    function addScene(){
+      const name=document.getElementById("newScene").value.trim();
+      if(!name) return;
+      if(!data.scenes[name]) data.scenes[name]={};
+      currentScene=name;
+      document.getElementById("newScene").value="";
+      renderScenes();
+      renderActors();
+    }
 
-// --- シーン ---
-function renderScenes(){
-  const list = document.getElementById("scene-list");
-  list.innerHTML="";
-  scenes.forEach((s,i)=>{
-    const btn=document.createElement("button");
-    btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
-    if(i===currentScene) btn.style.fontWeight="bold";
-    list.appendChild(btn);
-  });
-  document.getElementById("scene-memo").value=scenes[currentScene].memo;
-  renderLines();
-  renderActors();
-}
+    function setLineNumber(){
+      currentLine=parseInt(document.getElementById("lineNumber").value)||1;
+      renderActors();
+    }
 
-function addScene(){
-  scenes.push({ memo:"", lines:[{ text:"", actors:{} }] });
-  currentScene=scenes.length-1; currentLine=0;
-  renderScenes();
-}
+    function renderScenes(){
+      const list=document.getElementById("scene-list");
+      list.innerHTML="";
+      Object.keys(data.scenes).forEach(scene=>{
+        const btn=document.createElement("button");
+        btn.textContent=scene;
+        btn.onclick=()=>{ currentScene=scene; renderActors(); };
+        if(currentScene===scene) btn.style.fontWeight="bold";
+        list.appendChild(btn);
+      });
+    }
 
-// --- セリフ ---
-function renderLines(){
-  const list=document.getElementById("line-list");
-  list.innerHTML="";
-  scenes[currentScene].lines.forEach((l,i)=>{
-    const btn=document.createElement("button");
-    btn.textContent=l.text||"（空のセリフ）";
-    btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); };
-    if(i===currentLine) btn.style.fontWeight="bold";
-    list.appendChild(btn);
-    const del=document.createElement("button");
-    del.textContent="削除";
-    del.onclick=()=>{ scenes[currentScene].lines.splice(i,1); currentLine=0; renderLines(); renderActors(); };
-    list.appendChild(del);
-  });
-}
+    function renderActors(){
+      const stage=document.getElementById("stage");
+      stage.innerHTML="";
+      if(!currentScene) return;
+      const scene=data.scenes[currentScene];
+      if(!scene[currentLine]) scene[currentLine]={};
+      const actorsObj=scene[currentLine];
+      const names=data.actors||[];
 
-function addLine(){
-  const text=document.getElementById("new-line").value.trim();
-  if(!text) return;
-  scenes[currentScene].lines.push({ text, actors:{} });
-  document.getElementById("new-line").value="";
-  currentLine=scenes[currentScene].lines.length-1;
-  renderLines();
-  renderActors();
-}
+      // ステージ上
+      for(const name in actorsObj){
+        const pos=actorsObj[name];
+        const div=document.createElement("div");
+        div.className="actor"+(selectedActor===name?" selected":"");
+        div.style.left=pos.x+"px"; div.style.top=pos.y+"px";
+        div.textContent=name;
+        makeDraggable(div,name);
+        stage.appendChild(div);
+      }
 
-function jumpLine(){
-  const num=parseInt(document.getElementById("line-number").value,10);
-  if(!isNaN(num) && num>=1 && num<=scenes[currentScene].lines.length){
-    currentLine=num-1;
-    renderLines();
-    renderActors();
-  }
-}
+      // 役者リスト
+      const list=document.getElementById("actor-list");
+      list.innerHTML="";
+      names.forEach(name=>{
+        const wrapper=document.createElement("div");
+        wrapper.className="actor-button";
 
-// --- 役者共通 ---
-function renderActorPool(){
-  const list=document.getElementById("actors-pool");
-  list.innerHTML="";
-  actorsPool.forEach(name=>{
-    const btn=document.createElement("button");
-    btn.textContent=name;
-    btn.onclick=()=>{ addActorToLine(name); };
-    list.appendChild(btn);
-  });
-}
+        const btn=document.createElement("button");
+        btn.textContent=name;
+        btn.onclick=()=>{ selectedActor=(selectedActor===name)?null:name; renderActors(); };
 
-function addActorPool(){
-  const name=document.getElementById("new-actor").value.trim();
-  if(!name || actorsPool.includes(name)) return;
-  actorsPool.push(name);
-  document.getElementById("new-actor").value="";
-  renderActorPool();
-}
+        const copy=document.createElement("button");
+        copy.textContent="コピー";
+        copy.onclick=()=>{
+          if(actorsObj[name]) copiedPosition={...actorsObj[name]};
+        };
 
-function addActorToLine(name){
-  const line=scenes[currentScene].lines[currentLine];
-  if(!line.actors[name]) line.actors[name]={x:50,y:50};
-  renderActors();
-}
+        const paste=document.createElement("button");
+        paste.textContent="ペースト";
+        paste.onclick=()=>{
+          if(copiedPosition){
+            actorsObj[name]={...copiedPosition};
+            renderActors();
+          }
+        };
 
-// --- ステージ表示 ---
-function renderActors(){
-  const stage=document.getElementById("stage");
-  stage.innerHTML="";
-  const actorsObj=scenes[currentScene].lines[currentLine].actors;
-  const names=Object.keys(actorsObj);
-  names.forEach((name)=>{
-    if(selectedActor && selectedActor!==name) return;
-    const a=actorsObj[name];
-    const div=document.createElement("div");
-    div.className="actor";
-    div.textContent=name;
-    div.style.left=a.x+"px";
-    div.style.top=a.y+"px";
-    div.onmousedown=(e)=>{ dragIndex=name; document.onmousemove=drag; document.onmouseup=stopDrag; };
-    stage.appendChild(div);
-  });
+        const del=document.createElement("button");
+        del.textContent="削除";
+        del.onclick=()=>{ delete actorsObj[name]; renderActors(); };
 
-  const list=document.getElementById("actor-list");
-  list.innerHTML="";
-  names.forEach(name=>{
-    const wrapper=document.createElement("div");
-    wrapper.className="actor-button";
+        wrapper.appendChild(btn);
+        wrapper.appendChild(copy);
+        wrapper.appendChild(paste);
+        wrapper.appendChild(del);
+        list.appendChild(wrapper);
+      });
+    }
 
-    const btn=document.createElement("button");
-    btn.textContent=name;
-    btn.onclick=()=>{ selectedActor = (selectedActor===name)?null:name; renderActors(); };
+    function makeDraggable(el,name){
+      let offsetX,offsetY;
+      el.onmousedown=(e)=>{
+        offsetX=e.offsetX; offsetY=e.offsetY;
+        document.onmousemove=(ev)=>{
+          el.style.left=(ev.pageX-offsetX-280)+"px";
+          el.style.top=(ev.pageY-offsetY)+"px";
+        };
+        document.onmouseup=(ev)=>{
+          document.onmousemove=null;
+          const x=ev.pageX-offsetX-280;
+          const y=ev.pageY-offsetY;
+          data.scenes[currentScene][currentLine][name]={x,y};
+        };
+      };
+    }
 
-    const copy=document.createElement("button");
-    copy.textContent="コピー";
-    copy.onclick=()=>copyActorPosition(name);
+    function saveToCookie(){
+      document.cookie="playData="+encodeURIComponent(JSON.stringify(data))+"; path=/";
+      alert("保存しました");
+    }
 
-    const paste=document.createElement("button");
-    paste.textContent="ペースト";
-    paste.onclick=()=>pasteActorPosition(name);
-
-    const del=document.createElement("button");
-    del.textContent="削除";
-    del.onclick=()=>{ delete actorsObj[name]; renderActors(); };
-
-    wrapper.appendChild(btn);
-    wrapper.appendChild(copy);
-    wrapper.appendChild(paste);
-    wrapper.appendChild(del);
-    list.appendChild(wrapper);
-  });
-}
-
-// --- コピー・ペースト処理 ---
-function copyActorPosition(name) {
-  const actor = scenes[currentScene].lines[currentLine].actors[name];
-  if (actor) {
-    copiedPositions[name] = { ...actor };
-    alert(`${name} の位置をコピーしました`);
-  }
-}
-function pasteActorPosition(name) {
-  if (copiedPositions[name]) {
-    scenes[currentScene].lines[currentLine].actors[name] = { ...copiedPositions[name] };
-    renderActors();
-    alert(`${name} にコピーした位置をペーストしました`);
-  } else {
-    alert(`${name} のコピー位置はありません`);
-  }
-}
-
-// --- ドラッグ ---
-function drag(e){
-  const a=scenes[currentScene].lines[currentLine].actors[dragIndex];
-  a.x=e.pageX - document.getElementById("stage").offsetLeft - 25;
-  a.y=e.pageY - document.getElementById("stage").offsetTop - 25;
-  renderActors();
-}
-function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
-
-// --- データ入出力 ---
-function exportData(){
-  const data={actorsPool, scenes};
-  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="blocking.json";
-  a.click();
-}
-function importData(e){
-  const file=e.target.files[0];
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const obj=JSON.parse(ev.target.result);
-    actorsPool=obj.actorsPool||[];
-    scenes=obj.scenes||[{ memo:"", lines:[{text:"",actors:{}}] }];
-    currentScene=0; currentLine=0; renderActorPool(); renderScenes(); renderActors();
-  };
-  reader.readAsText(file);
-}
-
-// --- Enterキーで登録 ---
-document.getElementById("new-actor").addEventListener("keydown", e=>{
-  if(e.key==="Enter") addActorPool();
-});
-document.getElementById("new-line").addEventListener("keydown", e=>{
-  if(e.key==="Enter") addLine();
-});
-
-document.getElementById("scene-memo").addEventListener("input", e=>{
-  scenes[currentScene].memo=e.target.value;
-});
-
-renderActorPool();
-renderScenes();
-</script>
+    function loadFromCookie(){
+      const match=document.cookie.match(/playData=([^;]+)/);
+      if(match){
+        data=JSON.parse(decodeURIComponent(match[1]));
+        renderScenes();
+        renderActors();
+        alert("読み込み完了");
+      }
+    }
+  </script>
 </body>
 </html>
