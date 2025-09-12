@@ -42,12 +42,6 @@
     </div>
 
     <div class="section">
-      <h3>まとめ操作</h3>
-      <button onclick="copyAllPositions()">全部コピー</button>
-      <button onclick="pasteAllPositions()">全部ペースト</button>
-    </div>
-
-    <div class="section">
       <button onclick="saveToCookie()">保存</button>
       <button onclick="loadFromCookie()">読込</button>
     </div>
@@ -62,7 +56,6 @@
     let currentLine = 1;
     let selectedActor = null;
     let copiedPosition = null;
-    let copiedAllPositions = null; // ★ 全体コピー用
 
     function addActor(){
       const name=document.getElementById("newActor").value.trim();
@@ -175,22 +168,6 @@
       };
     }
 
-    // --- 全体コピー・ペースト ---
-    function copyAllPositions(){
-      if(!currentScene) return;
-      const scene=data.scenes[currentScene];
-      if(!scene[currentLine]) return;
-      copiedAllPositions=JSON.parse(JSON.stringify(scene[currentLine]));
-    }
-
-    function pasteAllPositions(){
-      if(!currentScene || !copiedAllPositions) return;
-      const scene=data.scenes[currentScene];
-      scene[currentLine]=JSON.parse(JSON.stringify(copiedAllPositions));
-      renderActors();
-    }
-
-    // --- 保存・読込 ---
     function saveToCookie(){
       document.cookie="playData="+encodeURIComponent(JSON.stringify(data))+"; path=/";
       alert("保存しました");
