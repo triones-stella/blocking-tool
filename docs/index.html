@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置閲覧ツール（矢印表示）</title>
+<title>立ち位置閲覧ツール（JSON読み込み対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -28,6 +28,7 @@ textarea { width:100%; margin-top:4px; }
 </style>
 </head>
 <body>
+
 <div class="container">
   <h3>シーン</h3>
   <div id="scene-list"></div>
@@ -35,6 +36,9 @@ textarea { width:100%; margin-top:4px; }
   <h4>セリフ</h4>
   <div id="line-list"></div>
   <textarea id="line-memo" placeholder="セリフメモ" readonly></textarea>
+
+  <h4>JSON読み込み</h4>
+  <input type="file" id="json-file">
 </div>
 
 <div class="container">
@@ -45,16 +49,9 @@ textarea { width:100%; margin-top:4px; }
 </div>
 
 <script>
-// サンプルデータ
-let scenes = [
-  { memo:"", lines:[{text:"サンプルセリフ", actors:{
-    "Alice": {x:50,y:50,nextX:150,nextY:100},
-    "Bob": {x:200,y:200} // nextX/nextY無しでも矢印表示される
-  }}]}
-];
+let scenes = [];
 let currentScene=0, currentLine=0;
 
-// --- シーン ---
 function renderScenes(){
   const list=document.getElementById("scene-list");
   list.innerHTML="";
@@ -67,10 +64,10 @@ function renderScenes(){
   });
 }
 
-// --- セリフ ---
 function renderLines(){
   const list=document.getElementById("line-list");
   list.innerHTML="";
+  if(!scenes[currentScene]) return;
   scenes[currentScene].lines.forEach((l,i)=>{
     const btn=document.createElement("button");
     btn.textContent=l.text||"（空）";
@@ -78,17 +75,17 @@ function renderLines(){
     if(i===currentLine) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
-  document.getElementById("line-memo").value = scenes[currentScene].lines[currentLine].memo||"";
+  document.getElementById("line-memo").value = scenes[currentScene].lines[currentLine]?.memo || "";
 }
 
-// --- ステージ表示 ---
 function renderActors(){
   const stage=document.getElementById("stage");
   const arrowLayer=document.getElementById("arrow-layer");
   arrowLayer.innerHTML="";
   stage.querySelectorAll(".actor").forEach(n=>n.remove());
+  if(!scenes[currentScene]) return;
 
-  const actorsObj=scenes[currentScene].lines[currentLine].actors;
+  const actorsObj=scenes[currentScene].lines[currentLine]?.actors || {};
   Object.keys(actorsObj).forEach(name=>{
     const a=actorsObj[name];
     const div=document.createElement("div");
@@ -116,9 +113,27 @@ function renderActors(){
   });
 }
 
-renderScenes();
-renderLines();
-renderActors();
+// --- JSON読み込み ---
+document.getElementById("json-file").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(data.scenes) scenes = data.scenes;
+      currentScene = 0;
+      currentLine = 0;
+      renderScenes();
+      renderLines();
+      renderActors();
+    }catch(err){
+      alert("JSONの読み込みに失敗しました");
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+});
 </script>
 </body>
 </html>
