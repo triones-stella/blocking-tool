@@ -2,15 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・Ctrl+Delete対応）</title>
+<title>立ち位置可視化ツール（編集用・矢印＆Ctrl+Delete対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 h3,h4 { margin:5px 0; }
-#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; }
+#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; overflow:hidden; }
+#arrow-layer { position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none; }
 .actor { width:50px; height:50px; border-radius:12px; background:#3498db; color:white;
   display:flex; align-items:center; justify-content:center; position:absolute; cursor:grab; }
-.arrow { position:absolute; height:2px; background:red; transform-origin:left center; }
+.arrow { position:absolute; color:red; font-size:24px; transform-origin:left center; }
 button { padding: 8px 16px; border-radius:4px; margin:4px; cursor:pointer; transition: all 0.1s ease; }
 button:active { transform: scale(0.96); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 input { width: 80px; margin: 2px; padding:4px; }
@@ -47,7 +48,9 @@ textarea { width:100%; margin-top:4px; }
 
 <div class="container">
   <h3>ステージ</h3>
-  <div id="stage"></div>
+  <div id="stage">
+    <div id="arrow-layer"></div>
+  </div>
   <h4>役者選択</h4>
   <div id="actor-list"></div>
 </div>
@@ -130,7 +133,10 @@ function setNextPosition(name){
 // --- ステージ表示 ---
 function renderActors(){
   const stage=document.getElementById("stage");
-  stage.innerHTML="";
+  const arrowLayer=document.getElementById("arrow-layer");
+  arrowLayer.innerHTML=""; // 矢印は毎回再描画
+  stage.querySelectorAll(".actor").forEach(n=>n.remove());
+
   const actorsObj=scenes[currentScene].lines[currentLine].actors;
   Object.keys(actorsObj).forEach(name=>{
     const a=actorsObj[name];
@@ -152,22 +158,21 @@ function renderActors(){
     };
     stage.appendChild(div);
 
-    // 矢印描画
+    // 矢印文字表示
     if(a.nextX!==undefined && a.nextY!==undefined){
-      const dx = a.nextX-a.x, dy=a.nextY-a.y;
-      const length=Math.sqrt(dx*dx+dy*dy);
+      const dx=a.nextX-a.x, dy=a.nextY-a.y;
       const angle=Math.atan2(dy,dx)*180/Math.PI;
-      const arrow=document.createElement("div");
+      const arrow=document.createElement("span");
+      arrow.textContent="⇒";
       arrow.className="arrow";
-      arrow.style.width=length+"px";
       arrow.style.left=a.x+"px";
       arrow.style.top=a.y+"px";
       arrow.style.transform=`rotate(${angle}deg)`;
-      stage.appendChild(arrow);
+      arrowLayer.appendChild(arrow);
     }
   });
 
-  // 役者リスト（削除ボタン付き）
+  // 役者リスト
   const list=document.getElementById("actor-list");
   list.innerHTML="";
   Object.keys(actorsObj).forEach(name=>{
@@ -184,9 +189,16 @@ function renderActors(){
 
 // --- ドラッグ ---
 function drag(e){
+  const stage=document.getElementById("stage");
   const a=scenes[currentScene].lines[currentLine].actors[dragIndex];
-  a.x=e.pageX - document.getElementById("stage").offsetLeft -25;
-  a.y=e.pageY - document.getElementById("stage").offsetTop -25;
+  let x=e.pageX-stage.offsetLeft-25;
+  let y=e.pageY-stage.offsetTop-25;
+
+  // ステージ内制限
+  x=Math.max(0, Math.min(stage.offsetWidth-50, x));
+  y=Math.max(0, Math.min(stage.offsetHeight-50, y));
+
+  a.x=x; a.y=y;
   renderActors();
 }
 function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
@@ -194,17 +206,21 @@ function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragInd
 // --- 矢印ドラッグ ---
 function updateArrowDrag(e){
   if(!arrowDragActor) return;
-  const a = scenes[currentScene].lines[currentLine].actors[arrowDragActor];
-  a.nextX = e.pageX - document.getElementById("stage").offsetLeft -25;
-  a.nextY = e.pageY - document.getElementById("stage").offsetTop -25;
+  const stage=document.getElementById("stage");
+  const a=scenes[currentScene].lines[currentLine].actors[arrowDragActor];
+  let x=e.pageX-stage.offsetLeft-25;
+  let y=e.pageY-stage.offsetTop-25;
+  x=Math.max(0, Math.min(stage.offsetWidth, x));
+  y=Math.max(0, Math.min(stage.offsetHeight, y));
+  a.nextX=x; a.nextY=y;
   renderActors();
 }
 function stopArrowDrag(){ arrowDragActor=null; document.onmousemove=null; document.onmouseup=null; }
 
 // --- Ctrl+Deleteで削除 ---
-document.addEventListener("keydown", (e)=>{
+document.addEventListener("keydown",(e)=>{
   if(e.key==="Delete" && e.ctrlKey && selectedActor){
-    const actorsObj = scenes[currentScene].lines[currentLine].actors;
+    const actorsObj=scenes[currentScene].lines[currentLine].actors;
     delete actorsObj[selectedActor];
     selectedActor=null;
     renderActors();
