@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・矢印＆Ctrl+Delete対応）</title>
+<title>立ち位置可視化ツール（Apple風矢印）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -10,9 +10,19 @@ h3,h4 { margin:5px 0; }
 #stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; overflow:hidden; }
 #arrow-layer { position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none; }
 .actor { width:50px; height:50px; border-radius:12px; background:#3498db; color:white;
-  display:flex; align-items:center; justify-content:center; position:absolute; cursor:grab; }
-.arrow { position:absolute; color:red; font-size:24px; transform-origin:left center; }
-button { padding: 8px 16px; border-radius:4px; margin:4px; cursor:pointer; transition: all 0.1s ease; }
+  display:flex; align-items:center; justify-content:center; position:absolute; cursor:grab;
+  transition: left 0.1s ease, top 0.1s ease;
+}
+.arrow {
+  position: absolute;
+  color: red;
+  font-weight: bold;
+  font-size: 24px;
+  transform-origin: left center;
+  pointer-events: none;
+  transition: transform 0.1s ease, left 0.1s ease, top 0.1s ease;
+}
+button { padding: 8px 16px; border-radius:6px; margin:4px; cursor:pointer; transition: all 0.1s ease; }
 button:active { transform: scale(0.96); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 input { width: 80px; margin: 2px; padding:4px; }
 textarea { width:100%; margin-top:4px; }
@@ -36,7 +46,7 @@ textarea { width:100%; margin-top:4px; }
   <input id="new-actor" placeholder="役者名">
   <button onclick="addActorPool()">＋役者追加</button>
 
-  <h4>移動先設定（数値入力でも可）</h4>
+  <h4>移動先設定</h4>
   X:<input id="next-x" type="number">
   Y:<input id="next-y" type="number">
   <button onclick="setNextPosition(selectedActor)">設定</button>
@@ -134,36 +144,37 @@ function setNextPosition(name){
 function renderActors(){
   const stage=document.getElementById("stage");
   const arrowLayer=document.getElementById("arrow-layer");
-  arrowLayer.innerHTML=""; // 矢印は毎回再描画
+  arrowLayer.innerHTML="";
   stage.querySelectorAll(".actor").forEach(n=>n.remove());
 
   const actorsObj=scenes[currentScene].lines[currentLine].actors;
   Object.keys(actorsObj).forEach(name=>{
     const a=actorsObj[name];
 
-    // キャラクター
     const div=document.createElement("div");
     div.className="actor"; div.textContent=name;
     div.style.left=a.x+"px"; div.style.top=a.y+"px";
 
     div.onmousedown=(e)=>{
-      if(e.shiftKey){ // Shift+ドラッグで矢印先
+      if(e.shiftKey){
         arrowDragActor = name;
         document.onmousemove = updateArrowDrag;
         document.onmouseup = stopArrowDrag;
-      } else { // 普通のドラッグ
+      } else {
         selectedActor=name; dragIndex=name;
         document.onmousemove=drag; document.onmouseup=stopDrag;
       }
     };
     stage.appendChild(div);
 
-    // 矢印文字表示
+    // 矢印文字（Apple風滑らか）
     if(a.nextX!==undefined && a.nextY!==undefined){
       const dx=a.nextX-a.x, dy=a.nextY-a.y;
       const angle=Math.atan2(dy,dx)*180/Math.PI;
+      const len=Math.ceil(Math.sqrt(dx*dx+dy*dy)/15);
+      let arrowStr="⇒".repeat(len);
       const arrow=document.createElement("span");
-      arrow.textContent="⇒";
+      arrow.textContent=arrowStr;
       arrow.className="arrow";
       arrow.style.left=a.x+"px";
       arrow.style.top=a.y+"px";
@@ -172,7 +183,6 @@ function renderActors(){
     }
   });
 
-  // 役者リスト
   const list=document.getElementById("actor-list");
   list.innerHTML="";
   Object.keys(actorsObj).forEach(name=>{
@@ -193,13 +203,9 @@ function drag(e){
   const a=scenes[currentScene].lines[currentLine].actors[dragIndex];
   let x=e.pageX-stage.offsetLeft-25;
   let y=e.pageY-stage.offsetTop-25;
-
-  // ステージ内制限
   x=Math.max(0, Math.min(stage.offsetWidth-50, x));
   y=Math.max(0, Math.min(stage.offsetHeight-50, y));
-
-  a.x=x; a.y=y;
-  renderActors();
+  a.x=x; a.y=y; renderActors();
 }
 function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
 
@@ -212,12 +218,11 @@ function updateArrowDrag(e){
   let y=e.pageY-stage.offsetTop-25;
   x=Math.max(0, Math.min(stage.offsetWidth, x));
   y=Math.max(0, Math.min(stage.offsetHeight, y));
-  a.nextX=x; a.nextY=y;
-  renderActors();
+  a.nextX=x; a.nextY=y; renderActors();
 }
 function stopArrowDrag(){ arrowDragActor=null; document.onmousemove=null; document.onmouseup=null; }
 
-// --- Ctrl+Deleteで削除 ---
+// --- Ctrl+Delete ---
 document.addEventListener("keydown",(e)=>{
   if(e.key==="Delete" && e.ctrlKey && selectedActor){
     const actorsObj=scenes[currentScene].lines[currentLine].actors;
@@ -227,7 +232,7 @@ document.addEventListener("keydown",(e)=>{
   }
 });
 
-// --- データ入出力 ---
+// --- データ ---
 function exportData(){
   const data={actorsPool, scenes};
   const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
