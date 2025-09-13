@@ -2,119 +2,124 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置閲覧ツール（矢印付き）</title>
+<title>立ち位置可視化ツール（閲覧用・ABC・角丸・自然な押し心地）</title>
 <style>
-body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
+body { font-family: sans-serif; display: flex; gap: 20px; background:#fafafa; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 h3,h4 { margin:5px 0; }
-#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; overflow:hidden; }
-#arrow-layer { position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none; }
-.actor { width:50px; height:50px; border-radius:12px; background:#3498db; color:white;
-  display:flex; align-items:center; justify-content:center; position:absolute;
-  transition: left 0.1s ease, top 0.1s ease;
+#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; }
+.actor {
+  width:50px; height:50px;
+  border-radius:12px; /* 少し角丸 */
+  background:#2ecc71; color:white;
+  display:flex; align-items:center; justify-content:center;
+  position:absolute;
 }
-.arrow {
-  position: absolute;
-  color: red;
-  font-weight: bold;
-  font-size: 24px;
-  transform-origin: left center;
-  pointer-events: none;
-  transition: transform 0.1s ease, left 0.1s ease, top 0.1s ease;
+button {
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 4px; /* 角だけ丸く */
+  margin: 6px;
+  cursor: pointer;
+  transition: all 0.1s ease; /* スムーズに変化 */
 }
-button { padding: 8px 16px; border-radius:6px; margin:4px; cursor:pointer; transition: all 0.1s ease; }
-button:active { transform: scale(0.96); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-textarea { width:100%; margin-top:4px; }
+
+button:active {
+  transform: scale(0.96);  /* 押した瞬間少し縮む */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 軽く影の変化 */
+}
+
+.line-memo { background:#f9f9f9; padding:5px; border:1px solid #ddd; border-radius:4px; margin-top:5px; white-space:pre-wrap; }
+input[type=number] { padding:6px; font-size:16px; width:80px; }
 </style>
 </head>
 <body>
+
 <div class="container">
   <h3>シーン</h3>
   <div id="scene-list"></div>
 
   <h4>セリフ</h4>
   <div id="line-list"></div>
-  <textarea id="line-memo" placeholder="セリフメモ" readonly></textarea>
+  <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
+  <button onclick="jumpLine()">ジャンプ</button>
+  <div id="line-memo-view" class="line-memo"></div>
+
+  <br><br>
+  <input type="file" onchange="importData(event)">
 </div>
 
 <div class="container">
   <h3>ステージ</h3>
-  <div id="stage">
-    <div id="arrow-layer"></div>
-  </div>
+  <div id="stage"></div>
 </div>
 
 <script>
-let scenes = [
-  { memo:"", lines:[{text:"サンプルセリフ", actors:{
-    "Alice": {x:50,y:50,nextX:150,nextY:100},
-    "Bob": {x:200,y:200,nextX:300,nextY:250}
-  }}]}
-];
+let scenes=[]; 
 let currentScene=0, currentLine=0;
 
-// --- シーン ---
 function renderScenes(){
   const list=document.getElementById("scene-list");
   list.innerHTML="";
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
-    btn.textContent=String.fromCharCode(65+i);
+    btn.textContent = String.fromCharCode(65 + i); // A,B,C… に変更
     btn.onclick=()=>{ currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors(); };
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
+  renderLines();
+  renderActors();
 }
 
-// --- セリフ ---
 function renderLines(){
   const list=document.getElementById("line-list");
   list.innerHTML="";
   scenes[currentScene].lines.forEach((l,i)=>{
     const btn=document.createElement("button");
-    btn.textContent=l.text||"（空）";
+    btn.textContent=l.text||"（空のセリフ）";
     btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); };
     if(i===currentLine) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
-  document.getElementById("line-memo").value = scenes[currentScene].lines[currentLine].memo||"";
+  document.getElementById("line-memo-view").textContent=scenes[currentScene].lines[currentLine].memo||"";
 }
 
-// --- ステージ表示 ---
+function jumpLine(){
+  const num=parseInt(document.getElementById("line-number").value,10);
+  if(!isNaN(num) && num>=1 && num<=scenes[currentScene].lines.length){
+    currentLine=num-1;
+    renderLines();
+    renderActors();
+  }
+}
+
 function renderActors(){
   const stage=document.getElementById("stage");
-  const arrowLayer=document.getElementById("arrow-layer");
-  arrowLayer.innerHTML="";
-  stage.querySelectorAll(".actor").forEach(n=>n.remove());
-
+  stage.innerHTML="";
   const actorsObj=scenes[currentScene].lines[currentLine].actors;
   Object.keys(actorsObj).forEach(name=>{
     const a=actorsObj[name];
     const div=document.createElement("div");
-    div.className="actor"; div.textContent=name;
-    div.style.left=a.x+"px"; div.style.top=a.y+"px";
+    div.className="actor";
+    div.textContent=name;
+    div.style.left=a.x+"px";
+    div.style.top=a.y+"px";
     stage.appendChild(div);
-
-    // 矢印表示
-    if(a.nextX!==undefined && a.nextY!==undefined){
-      const dx=a.nextX-a.x, dy=a.nextY-a.y;
-      const angle=Math.atan2(dy,dx)*180/Math.PI;
-      const len=Math.ceil(Math.sqrt(dx*dx+dy*dy)/15);
-      const arrowStr="⇒".repeat(len);
-      const arrow=document.createElement("span");
-      arrow.textContent=arrowStr;
-      arrow.className="arrow";
-      arrow.style.left=a.x+"px";
-      arrow.style.top=a.y+"px";
-      arrow.style.transform=`rotate(${angle}deg)`;
-      arrowLayer.appendChild(arrow);
-    }
   });
 }
 
-renderScenes();
-renderLines();
-renderActors();
+function importData(e){
+  const file=e.target.files[0];
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const obj=JSON.parse(ev.target.result);
+    scenes=obj.scenes||[];
+    currentScene=0; currentLine=0;
+    renderScenes(); renderActors();
+  };
+  reader.readAsText(file);
+}
 </script>
 </body>
 </html>
