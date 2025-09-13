@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・矢印対応）</title>
+<title>立ち位置可視化ツール（編集用・矢印ドラッグ対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -14,6 +14,7 @@ h3,h4 { margin:5px 0; }
 button { padding: 8px 16px; border-radius:4px; margin:4px; cursor:pointer; transition: all 0.1s ease; }
 button:active { transform: scale(0.96); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 input { width: 80px; margin: 2px; padding:4px; }
+textarea { width:100%; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -33,7 +34,7 @@ input { width: 80px; margin: 2px; padding:4px; }
   <input id="new-actor" placeholder="役者名">
   <button onclick="addActorPool()">＋役者追加</button>
 
-  <h4>移動先設定</h4>
+  <h4>移動先設定（数値入力でも可）</h4>
   X:<input id="next-x" type="number">
   Y:<input id="next-y" type="number">
   <button onclick="setNextPosition(selectedActor)">設定</button>
@@ -54,6 +55,7 @@ input { width: 80px; margin: 2px; padding:4px; }
 let actorsPool=[]; 
 let scenes=[{ memo:"", lines:[{text:"", actors:{}}] }];
 let currentScene=0, currentLine=0, selectedActor=null, dragIndex=null;
+let arrowDragActor=null;
 
 // --- シーン ---
 function renderScenes(){
@@ -116,7 +118,6 @@ function addActorToLine(name){
   renderActors();
 }
 
-// --- 移動先設定 ---
 function setNextPosition(name){
   if(!name) return;
   const actor = scenes[currentScene].lines[currentLine].actors[name];
@@ -132,13 +133,25 @@ function renderActors(){
   const actorsObj=scenes[currentScene].lines[currentLine].actors;
   Object.keys(actorsObj).forEach(name=>{
     const a=actorsObj[name];
+
     // キャラクター
     const div=document.createElement("div");
     div.className="actor"; div.textContent=name;
     div.style.left=a.x+"px"; div.style.top=a.y+"px";
-    div.onmousedown=(e)=>{ selectedActor=name; dragIndex=name; document.onmousemove=drag; document.onmouseup=stopDrag; };
+
+    div.onmousedown=(e)=>{
+      if(e.shiftKey){ // Shift+ドラッグで矢印先
+        arrowDragActor = name;
+        document.onmousemove = updateArrowDrag;
+        document.onmouseup = stopArrowDrag;
+      } else { // 普通のドラッグ
+        selectedActor=name; dragIndex=name;
+        document.onmousemove=drag; document.onmouseup=stopDrag;
+      }
+    };
     stage.appendChild(div);
-    // 矢印
+
+    // 矢印描画
     if(a.nextX!==undefined && a.nextY!==undefined){
       const dx = a.nextX-a.x, dy=a.nextY-a.y;
       const length=Math.sqrt(dx*dx+dy*dy);
@@ -170,6 +183,19 @@ function drag(e){
   renderActors();
 }
 function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
+
+// --- 矢印ドラッグ ---
+function updateArrowDrag(e){
+  if(!arrowDragActor) return;
+  const a = scenes[currentScene].lines[currentLine].actors[arrowDragActor];
+  a.nextX = e.pageX - document.getElementById("stage").offsetLeft -25;
+  a.nextY = e.pageY - document.getElementById("stage").offsetTop -25;
+  renderActors();
+}
+function stopArrowDrag(){
+  arrowDragActor=null;
+  document.onmousemove=null; document.onmouseup=null;
+}
 
 // --- データ入出力 ---
 function exportData(){
