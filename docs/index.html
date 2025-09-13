@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置閲覧ツール（矢印付き）</title>
+<title>立ち位置閲覧ツール（矢印表示）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -45,10 +45,11 @@ textarea { width:100%; margin-top:4px; }
 </div>
 
 <script>
+// サンプルデータ
 let scenes = [
   { memo:"", lines:[{text:"サンプルセリフ", actors:{
     "Alice": {x:50,y:50,nextX:150,nextY:100},
-    "Bob": {x:200,y:200,nextX:300,nextY:250}
+    "Bob": {x:200,y:200} // nextX/nextY無しでも矢印表示される
   }}]}
 ];
 let currentScene=0, currentLine=0;
@@ -96,10 +97,13 @@ function renderActors(){
     stage.appendChild(div);
 
     // 矢印表示
-    if(a.nextX!==undefined && a.nextY!==undefined){
-      const dx=a.nextX-a.x, dy=a.nextY-a.y;
-      const angle=Math.atan2(dy,dx)*180/Math.PI;
-      const len=Math.ceil(Math.sqrt(dx*dx+dy*dy)/15);
+    const nx = a.nextX !== undefined ? a.nextX : a.x;
+    const ny = a.nextY !== undefined ? a.nextY : a.y;
+    const dx = nx - a.x;
+    const dy = ny - a.y;
+    const angle=Math.atan2(dy,dx)*180/Math.PI;
+    const len=Math.ceil(Math.sqrt(dx*dx+dy*dy)/15);
+    if(len>0){
       const arrowStr="⇒".repeat(len);
       const arrow=document.createElement("span");
       arrow.textContent=arrowStr;
