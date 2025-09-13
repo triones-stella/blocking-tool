@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・矢印ドラッグ対応）</title>
+<title>立ち位置可視化ツール（編集用・矢印ドラッグ＋削除ボタン対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -15,6 +15,7 @@ button { padding: 8px 16px; border-radius:4px; margin:4px; cursor:pointer; trans
 button:active { transform: scale(0.96); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 input { width: 80px; margin: 2px; padding:4px; }
 textarea { width:100%; margin-top:4px; }
+.actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
 </style>
 </head>
 <body>
@@ -166,12 +167,18 @@ function renderActors(){
     }
   });
 
-  // 役者リスト
-  const list=document.getElementById("actor-list"); list.innerHTML="";
+  // 役者リスト（削除ボタン付き）
+  const list=document.getElementById("actor-list");
+  list.innerHTML="";
   Object.keys(actorsObj).forEach(name=>{
+    const wrapper=document.createElement("div");
+    wrapper.className="actor-button";
     const btn=document.createElement("button"); btn.textContent=name;
     btn.onclick=()=>{ selectedActor = (selectedActor===name)?null:name; renderActors(); };
-    list.appendChild(btn);
+    const del=document.createElement("button"); del.textContent="削除";
+    del.onclick=()=>{ delete actorsObj[name]; renderActors(); };
+    wrapper.appendChild(btn); wrapper.appendChild(del);
+    list.appendChild(wrapper);
   });
 }
 
@@ -192,10 +199,7 @@ function updateArrowDrag(e){
   a.nextY = e.pageY - document.getElementById("stage").offsetTop -25;
   renderActors();
 }
-function stopArrowDrag(){
-  arrowDragActor=null;
-  document.onmousemove=null; document.onmouseup=null;
-}
+function stopArrowDrag(){ arrowDragActor=null; document.onmousemove=null; document.onmouseup=null; }
 
 // --- データ入出力 ---
 function exportData(){
