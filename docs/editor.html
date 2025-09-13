@@ -194,17 +194,13 @@ function copyActorPosition(name) {
   const actor = scenes[currentScene].lines[currentLine].actors[name];
   if (actor) {
     copiedPositions[name] = { ...actor };
-    alert(`${name} の位置をコピーしました`);
   }
 }
 function pasteActorPosition(name) {
   if (copiedPositions[name]) {
     scenes[currentScene].lines[currentLine].actors[name] = { ...copiedPositions[name] };
     renderActors();
-    alert(`${name} にコピーした位置をペーストしました`);
-  } else {
-    alert(`${name} のコピー位置はありません`);
-  }
+  } 
 }
 
 // --- ドラッグ ---
