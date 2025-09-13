@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（編集用・矢印ドラッグ＋削除ボタン対応）</title>
+<title>立ち位置可視化ツール（編集用・Ctrl+Delete対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -200,6 +200,16 @@ function updateArrowDrag(e){
   renderActors();
 }
 function stopArrowDrag(){ arrowDragActor=null; document.onmousemove=null; document.onmouseup=null; }
+
+// --- Ctrl+Deleteで削除 ---
+document.addEventListener("keydown", (e)=>{
+  if(e.key==="Delete" && e.ctrlKey && selectedActor){
+    const actorsObj = scenes[currentScene].lines[currentLine].actors;
+    delete actorsObj[selectedActor];
+    selectedActor=null;
+    renderActors();
+  }
+});
 
 // --- データ入出力 ---
 function exportData(){
