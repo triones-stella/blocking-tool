@@ -2,15 +2,22 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（閲覧用・セリフメモ表示）</title>
+<title>立ち位置可視化ツール（閲覧用・大きめボタン）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#fafafa; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 h3,h4 { margin:5px 0; }
 #stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; }
 .actor { width:50px;height:50px;border-radius:50%;background:#2ecc71;color:white;display:flex;align-items:center;justify-content:center;position:absolute; }
-button { margin:2px; }
+button {
+  padding: 12px 20px;   /* ボタンを大きく */
+  font-size: 16px;      /* 文字を大きく */
+  border-radius: 8px;   /* 角丸 */
+  margin: 6px;          /* ボタン間の余白 */
+  cursor: pointer;
+}
 .line-memo { background:#f9f9f9; padding:5px; border:1px solid #ddd; border-radius:4px; margin-top:5px; white-space:pre-wrap; }
+input[type=number] { padding:6px; font-size:16px; width:80px; }
 </style>
 </head>
 <body>
