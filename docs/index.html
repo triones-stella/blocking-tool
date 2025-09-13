@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（閲覧用・ABC・角丸調整）</title>
+<title>立ち位置可視化ツール（閲覧用・ABC・角丸・自然な押し心地）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#fafafa; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
@@ -21,7 +21,14 @@ button {
   border-radius: 4px; /* 角だけ丸く */
   margin: 6px;
   cursor: pointer;
+  transition: all 0.1s ease; /* スムーズに変化 */
 }
+
+button:active {
+  transform: scale(0.96);  /* 押した瞬間少し縮む */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 軽く影の変化 */
+}
+
 .line-memo { background:#f9f9f9; padding:5px; border:1px solid #ddd; border-radius:4px; margin-top:5px; white-space:pre-wrap; }
 input[type=number] { padding:6px; font-size:16px; width:80px; }
 </style>
