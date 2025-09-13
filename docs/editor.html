@@ -22,6 +22,7 @@ textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; 
   <div id="scene-list"></div>
   <button onclick="addScene()">＋シーン追加</button>
   <textarea id="scene-memo" placeholder="シーンのメモ"></textarea>
+  
 
   <h4>セリフ</h4>
   <div id="line-list"></div>
@@ -39,6 +40,12 @@ textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; 
   <button onclick="exportData()">エクスポート</button>
   <input type="file" onchange="importData(event)">
 </div>
+
+  <div class="section">
+  <h3>セリフメモ</h3>
+  <textarea id="lineMemo" rows="3" placeholder="このセリフのメモ"></textarea>
+</div>
+
 
 <div class="container">
   <h3>ステージ</h3>
@@ -157,6 +164,16 @@ function renderActors(){
     div.style.top=a.y+"px";
     div.onmousedown=(e)=>{ dragIndex=name; document.onmousemove=drag; document.onmouseup=stopDrag; };
     stage.appendChild(div);
+    // renderActors() の最後に追加
+const memoBox = document.getElementById("lineMemo");
+const lineData = data.scenes[currentScene][currentLine];
+if(!lineData.memo) lineData.memo = "";
+memoBox.value = lineData.memo;
+
+memoBox.oninput = (e)=>{
+  lineData.memo = e.target.value;
+};
+
   });
 
   const list=document.getElementById("actor-list");
