@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>立ち位置可視化ツール（改良版3・セリフメモ付き）</title>
+<title>立ち位置可視化ツール（編集用・セリフメモ対応）</title>
 <style>
 body { font-family: sans-serif; display: flex; gap: 20px; background:#f0f0f0; }
 .container { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 h3,h4 { margin:5px 0; }
-#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; display:flex; justify-content:center; align-items:center; }
+#stage { width: 600px; height: 400px; background: #eee; position: relative; border: 2px solid #aaa; }
 .actor { width:50px;height:50px;border-radius:50%;background:#3498db;color:white;display:flex;align-items:center;justify-content:center;position:absolute;cursor:grab; }
 .hidden { opacity:0.1; }
 button { margin:2px; }
@@ -29,9 +29,7 @@ textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; 
   <button onclick="addLine()">＋セリフ追加</button>
   <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
   <button onclick="jumpLine()">ジャンプ</button>
-
-  <h4>セリフメモ</h4>
-  <textarea id="lineMemo" rows="3" placeholder="このセリフのメモ"></textarea>
+  <textarea id="line-memo" placeholder="セリフのメモ"></textarea>
 
   <h4>役者（共通）</h4>
   <div id="actors-pool"></div>
@@ -53,7 +51,7 @@ textarea,input { width:100%; margin-bottom:5px; padding:5px; border-radius:4px; 
 
 <script>
 let actorsPool = [];
-let scenes = [{ memo:"", lines:[{ text:"", actors:{}, memo:"" }] }];
+let scenes = [{ memo:"", lines:[{ text:"", memo:"", actors:{} }] }];
 let currentScene=0, currentLine=0, selectedActor=null;
 let dragIndex=null;
 
@@ -64,7 +62,11 @@ function renderScenes(){
   scenes.forEach((s,i)=>{
     const btn=document.createElement("button");
     btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ scenes[currentScene].memo=document.getElementById("scene-memo").value; currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
+    btn.onclick=()=>{
+      saveCurrent();
+      currentScene=i; currentLine=0;
+      renderScenes(); renderLines(); renderActors();
+    }
     if(i===currentScene) btn.style.fontWeight="bold";
     list.appendChild(btn);
   });
@@ -74,7 +76,7 @@ function renderScenes(){
 }
 
 function addScene(){
-  scenes.push({ memo:"", lines:[{ text:"", actors:{}, memo:"" }] });
+  scenes.push({ memo:"", lines:[{ text:"", memo:"", actors:{} }] });
   currentScene=scenes.length-1; currentLine=0;
   renderScenes();
 }
@@ -86,7 +88,7 @@ function renderLines(){
   scenes[currentScene].lines.forEach((l,i)=>{
     const btn=document.createElement("button");
     btn.textContent=l.text||"（空のセリフ）";
-    btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); };
+    btn.onclick=()=>{ saveCurrent(); currentLine=i; renderLines(); renderActors(); };
     if(i===currentLine) btn.style.fontWeight="bold";
     list.appendChild(btn);
     const del=document.createElement("button");
@@ -94,12 +96,13 @@ function renderLines(){
     del.onclick=()=>{ scenes[currentScene].lines.splice(i,1); currentLine=0; renderLines(); renderActors(); };
     list.appendChild(del);
   });
+  document.getElementById("line-memo").value=scenes[currentScene].lines[currentLine].memo||"";
 }
 
 function addLine(){
   const text=document.getElementById("new-line").value.trim();
   if(!text) return;
-  scenes[currentScene].lines.push({ text, actors:{}, memo:"" });
+  scenes[currentScene].lines.push({ text, memo:"", actors:{} });
   document.getElementById("new-line").value="";
   currentLine=scenes[currentScene].lines.length-1;
   renderLines();
@@ -109,6 +112,7 @@ function addLine(){
 function jumpLine(){
   const num=parseInt(document.getElementById("line-number").value,10);
   if(!isNaN(num) && num>=1 && num<=scenes[currentScene].lines.length){
+    saveCurrent();
     currentLine=num-1;
     renderLines();
     renderActors();
@@ -145,8 +149,7 @@ function addActorToLine(name){
 function renderActors(){
   const stage=document.getElementById("stage");
   stage.innerHTML="";
-  const line=scenes[currentScene].lines[currentLine];
-  const actorsObj=line.actors;
+  const actorsObj=scenes[currentScene].lines[currentLine].actors;
   const names=Object.keys(actorsObj);
   names.forEach((name)=>{
     if(selectedActor && selectedActor!==name) return;
@@ -175,14 +178,6 @@ function renderActors(){
     wrapper.appendChild(del);
     list.appendChild(wrapper);
   });
-
-  // --- セリフメモ反映 ---
-  const memoBox=document.getElementById("lineMemo");
-  if(memoBox){
-    if(!("memo" in line)) line.memo="";
-    memoBox.value=line.memo;
-    memoBox.oninput=(e)=>{ line.memo=e.target.value; };
-  }
 }
 
 // --- ドラッグ ---
@@ -194,8 +189,15 @@ function drag(e){
 }
 function stopDrag(){ document.onmousemove=null; document.onmouseup=null; dragIndex=null; }
 
+// --- 保存 ---
+function saveCurrent(){
+  scenes[currentScene].memo=document.getElementById("scene-memo").value;
+  scenes[currentScene].lines[currentLine].memo=document.getElementById("line-memo").value;
+}
+
 // --- データ入出力 ---
 function exportData(){
+  saveCurrent();
   const data={actorsPool, scenes};
   const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
@@ -210,7 +212,7 @@ function importData(e){
   reader.onload=ev=>{
     const obj=JSON.parse(ev.target.result);
     actorsPool=obj.actorsPool||[];
-    scenes=obj.scenes||[{ memo:"", lines:[{text:"",actors:{},memo:""}] }];
+    scenes=obj.scenes||[{ memo:"", lines:[{text:"",memo:"",actors:{}}] }];
     currentScene=0; currentLine=0; renderActorPool(); renderScenes(); renderActors();
   };
   reader.readAsText(file);
@@ -226,6 +228,9 @@ document.getElementById("new-line").addEventListener("keydown", e=>{
 
 document.getElementById("scene-memo").addEventListener("input", e=>{
   scenes[currentScene].memo=e.target.value;
+});
+document.getElementById("line-memo").addEventListener("input", e=>{
+  scenes[currentScene].lines[currentLine].memo=e.target.value;
 });
 
 renderActorPool();
