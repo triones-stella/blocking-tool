@@ -1,139 +1,134 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>立ち位置可視化ツール（閲覧専用）</title>
-<style>
-body { font-family:sans-serif; display:flex; gap:20px; background:#f0f0f0; margin:0; padding:10px; }
-.container { background:white; padding:15px; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,0.2); width:300px; }
-h3,h4 { margin:5px 0; }
-#stage-container { flex-grow:1; }
-#stage { width:700px; height:500px; background:#eee; border:2px solid #aaa; position:relative;
-         background-image: linear-gradient(0deg, transparent 24%, #ccc 25%, #ccc 26%, transparent 27%, transparent 74%, #ccc 75%, #ccc 76%, transparent 77%, transparent),
-                           linear-gradient(90deg, transparent 24%, #ccc 25%, #ccc 26%, transparent 27%, transparent 74%, #ccc 75%, #ccc 76%, transparent 77%, transparent);
-         background-size:50px 50px; }
-.actor { width:50px;height:50px;border-radius:50%;background:#3498db;color:white;display:flex;align-items:center;justify-content:center;position:absolute; }
-button { margin:2px; cursor:pointer; }
-.actor-button { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
-.flex-row { display:flex; gap:5px; }
-</style>
+  <meta charset="UTF-8">
+  <title>閲覧用: 舞台演出ビューア</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background: #f9f9f9; }
+    .section { margin-bottom: 15px; }
+    #stage { border: 1px solid #333; background: #fff; margin-top: 10px; }
+    #actorsList { margin-top: 10px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    textarea { width: 100%; resize: vertical; }
+  </style>
 </head>
 <body>
+  <h2>閲覧用ビューア</h2>
 
-<div class="container">
-  <h3>シーン</h3>
-  <div id="scene-list"></div>
-  <textarea id="scene-memo" placeholder="シーンのメモ" readonly></textarea>
-
-  <h4>セリフ</h4>
-  <div id="line-list"></div>
-  <div class="flex-row">
-    <input id="line-number" type="number" min="1" max="113" placeholder="セリフ番号">
-    <button onclick="jumpLine()">ジャンプ</button>
+  <div class="section">
+    <label>シーン選択:
+      <select id="sceneSelect"></select>
+    </label>
+    <label>セリフ番号:
+      <input type="number" id="lineInput" min="1" value="1" style="width:60px;">
+      <button id="goLine">ジャンプ</button>
+    </label>
   </div>
 
-  <h4>データ読み込み</h4>
-  <input type="file" onchange="importData(event)">
-</div>
+  <div class="section">
+    <canvas id="stage" width="600" height="400"></canvas>
+    <div id="actorsList"></div>
+  </div>
 
-<div id="stage-container" class="container">
-  <h3>ステージ</h3>
-  <div id="stage"></div>
+  <div class="section">
+    <h4>セリフメモ</h4>
+    <textarea id="lineMemo" rows="3" readonly placeholder="このセリフのメモ (編集不可)"></textarea>
+  </div>
 
-  <h4>役者表示切替</h4>
-  <div id="actor-list"></div>
-  <button onclick="showAllActors()">全員表示</button>
-</div>
+  <div class="section">
+    <button id="prevLine">← 前のセリフ</button>
+    <button id="nextLine">次のセリフ →</button>
+  </div>
+
+  <div class="section">
+    <h4>データ読込</h4>
+    <input type="file" id="importFile">
+  </div>
 
 <script>
-let actorsPool = [];
-let scenes = [];
-let currentScene=0, currentLine=0, selectedActor=null;
+let data = { actors: [], scenes: {} };
+let currentScene = null;
+let currentLine = 1;
 
-// --- シーン ---
-function renderScenes(){
-  const list = document.getElementById("scene-list");
-  list.innerHTML="";
-  scenes.forEach((s,i)=>{
-    const btn=document.createElement("button");
-    btn.textContent="シーン "+(i+1);
-    btn.onclick=()=>{ currentScene=i; currentLine=0; renderScenes(); renderLines(); renderActors();}
-    if(i===currentScene) btn.style.fontWeight="bold";
-    list.appendChild(btn);
-  });
-  document.getElementById("scene-memo").value=scenes[currentScene]?.memo || "";
-  renderLines();
-  renderActors();
-}
+function renderScene() {
+  if (!currentScene) return;
+  const sceneData = data.scenes[currentScene];
+  if (!sceneData || !sceneData.lines[currentLine]) return;
 
-// --- セリフ ---
-function renderLines(){
-  const list=document.getElementById("line-list");
-  list.innerHTML="";
-  scenes[currentScene].lines.forEach((l,i)=>{
-    const btn=document.createElement("button");
-    btn.textContent=l.text||"（空のセリフ）";
-    btn.onclick=()=>{ currentLine=i; renderLines(); renderActors(); };
-    if(i===currentLine) btn.style.fontWeight="bold";
-    list.appendChild(btn);
-  });
-}
+  const lineData = sceneData.lines[currentLine];
 
-function jumpLine(){
-  const num=parseInt(document.getElementById("line-number").value,10);
-  if(!isNaN(num) && num>=1 && num<=scenes[currentScene].lines.length){
-    currentLine=num-1;
-    renderLines();
-    renderActors();
+  // Canvas
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const actor in lineData.actors) {
+    const {x,y} = lineData.actors[actor];
+    ctx.beginPath();
+    ctx.arc(x, y, 15, 0, Math.PI*2);
+    ctx.fillStyle = "skyblue";
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "black";
+    ctx.fillText(actor, x-10, y-20);
   }
+
+  // リスト
+  const list = document.getElementById("actorsList");
+  list.innerHTML = `<b>セリフ ${currentLine}</b><br>` +
+    Object.entries(lineData.actors).map(([a,pos]) => 
+      `${a}: (${pos.x},${pos.y})`).join("<br>");
+
+  // メモ
+  const memoBox = document.getElementById("lineMemo");
+  memoBox.value = lineData.memo || "";
 }
 
-// --- ステージ表示 ---
-function renderActors(){
-  const stage=document.getElementById("stage");
-  stage.innerHTML="";
-  const actorsObj=scenes[currentScene].lines[currentLine].actors;
-  const names=Object.keys(actorsObj);
-  names.forEach((name)=>{
-    if(selectedActor && selectedActor!==name) return;
-    const a=actorsObj[name];
-    const div=document.createElement("div");
-    div.className="actor";
-    div.textContent=name;
-    div.style.left=a.x+"px";
-    div.style.top=a.y+"px";
-    stage.appendChild(div);
-  });
-
-  const list=document.getElementById("actor-list");
-  list.innerHTML="";
-  names.forEach(name=>{
-    const wrapper=document.createElement("div");
-    wrapper.className="actor-button";
-    const btn=document.createElement("button");
-    btn.textContent=name;
-    btn.onclick=()=>{ selectedActor = (selectedActor===name)?null:name; renderActors(); };
-    wrapper.appendChild(btn);
-    list.appendChild(wrapper);
-  });
+function changeLine(newLine) {
+  const sceneData = data.scenes[currentScene];
+  if (!sceneData) return;
+  if (!sceneData.lines[newLine]) return;
+  currentLine = newLine;
+  document.getElementById("lineInput").value = newLine;
+  renderScene();
 }
 
-// --- 表示切替 ---
-function showAllActors(){ selectedActor=null; renderActors(); }
+document.getElementById("goLine").onclick = ()=>{
+  changeLine(parseInt(document.getElementById("lineInput").value));
+};
+document.getElementById("prevLine").onclick = ()=>{
+  changeLine(currentLine-1);
+};
+document.getElementById("nextLine").onclick = ()=>{
+  changeLine(currentLine+1);
+};
 
-// --- データ読み込み ---
-function importData(e){
-  const file=e.target.files[0];
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const obj=JSON.parse(ev.target.result);
-    actorsPool=obj.actorsPool||[];
-    scenes=obj.scenes||[];
-    currentScene=0; currentLine=0;
-    renderScenes();
+document.getElementById("sceneSelect").onchange = (e)=>{
+  currentScene = e.target.value;
+  currentLine = 1;
+  renderScene();
+};
+
+// データ読込
+document.getElementById("importFile").onchange = (e)=>{
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try {
+      data = JSON.parse(evt.target.result);
+      // シーン選択更新
+      const sceneSelect = document.getElementById("sceneSelect");
+      sceneSelect.innerHTML = Object.keys(data.scenes)
+        .map(s=>`<option>${s}</option>`).join("");
+      currentScene = Object.keys(data.scenes)[0];
+      currentLine = 1;
+      renderScene();
+    } catch(err) {
+      alert("読み込み失敗: " + err);
+    }
   };
   reader.readAsText(file);
-}
+};
 </script>
 </body>
 </html>
